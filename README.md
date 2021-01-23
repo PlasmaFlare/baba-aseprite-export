@@ -2,7 +2,7 @@
 A script for exporting baba sprites created in aseprite
 
 ## Requirements
-- Requires Aseprite 1.2.11+
+- Requires Aseprite 1.2.22+
 
 ## Installing/Usage
 - Copy baba_sprite_export.lua to the Aseprite scripts directory
