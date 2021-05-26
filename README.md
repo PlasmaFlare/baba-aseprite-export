@@ -20,7 +20,7 @@ A script for exporting baba sprites created in aseprite
   - Special options "All layers" and "Visible Layers" use multiple layers
 
 ## Animation Style
-The animation style option corresponds to the 6 modes of animation (plus one extra) supported in Baba Is You:
+The animation style option corresponds to the 6 modes of animation (plus two extras) supported in Baba Is You:
 - **None** - sprite remains the same (rock, flag, box)
 - **Directional** - sprite changes based on the direction it is facing (ghost, skull, hand)
 - **Animated** - sprite changes at every turn, ignoring directions (bubble, cog, bat)
@@ -28,6 +28,7 @@ The animation style option corresponds to the 6 modes of animation (plus one ext
 - **Character** - sprite changes whenever the object moves. Sequence of sprites is influenced by direction. Also has sleep sprites. (baba, keke, me)
 - **Tiled** - sprite changes based on if its near other objects of the same sprite (wall, brick, fence)
 - **Text** - this isn't an actual animation style in Baba, but it is used to export text sprites. Under the hood, it uses the "None" animation style and prepends `text_` to the output file names
+- **Tiled Slices** - this isn't an actual animation style in Baba. It's exactly like "Tiled" but the format uses an Aseprite feature called slices. Basically think a tilemap editor.
 
 (Note: when saying that the sprite remains the same, we ignore the wobble animation.)
 
