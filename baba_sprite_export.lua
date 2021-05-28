@@ -383,8 +383,14 @@ function generate_tag_template(tiling, name)
     local tags_to_generate = tags_to_check_for[tiling]
 
     for tag,_ in pairs(tags_to_check_for[tiling]) do
-        for i=1,frames_per_set*3 do
-            frame = sprite:newEmptyFrame(i)
+        if sleep_tags[tag] then
+            for i=1,3 do
+                frame = sprite:newEmptyFrame(i)
+            end
+        else
+            for i=1,frames_per_set*3 do
+                frame = sprite:newEmptyFrame(i)
+            end
         end
     end
     curr_frame_num = 1
