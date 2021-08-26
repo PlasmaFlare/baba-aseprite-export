@@ -12,7 +12,8 @@ A script for exporting baba sprites created in aseprite
 
 <img src="preview.png" alt="drawing" width="1000"/>
 
-## Update History (because I forgot to do this before)
+---
+# Changelog (because I forgot to do this before)
 - 8/26/21
   - Fixed "character" template not setting sleep tags correctly
   - If exporting, the dialog tries to auto-guess which animation type you are exporting based on which tags are present. For tiled_slices, it looks at the current slices
@@ -20,7 +21,12 @@ A script for exporting baba sprites created in aseprite
   - Added ability to generate templates
   - Added "tiled_slices" option as an alternative for "tiled" animation style
 
-## Options
+# Generating Templates
+To save the hassle of making the tags manually, there is now an option to make a template sprite. This creates a new aseprite file with the tags already set. So you can just focus on filling in the frames.
+
+<img src="template_demo.gif" alt="drawing" width="1000"/>
+
+# Options
 - **Animation Style** - the sprite format (details explained in the next section)
 - **Sprite Name** - the name of the sprite. The names of the output folder and exported images will start with this.
   - For exporting "Text" animation style, the folder will be `<sprite name>_out` but the exported images will have `text_` prepended to the name.
@@ -40,41 +46,50 @@ The animation style option corresponds to the 6 modes of animation (plus two ext
 
 (Note: when saying that the sprite remains the same, we ignore the wobble animation.)
 
-The Aseprite file needs to tell the script which frames to export while following the animation style requirements. This is done with Aseprite tags, which specify a range of frames. Each animation style needs a certain set of tags, each with a specific number of frames. The specification is listed in the next section.
-
-
-- Note: the script treats tag names as case-insensitive
-- Note: some of the animation styles require multiple sets of wobble animations in one tag. Each wobble animation is 3 frames. So the frame layout would be
-```
-[Set 1, wobble frame 1] | [Set 1, wobble frame 2] | [Set 1, wobble frame 3] | [Set 2, wobble frame 1] | [Set 2, wobble frame 2] | [Set 2, wobble frame 3] ...
-```
-
 ## Tag Specification
+The Aseprite file needs to tell the script which frames to export while following the animation style requirements. This is done with Aseprite tags, which specify a range of frames. Each animation style needs a certain set of tags, each with a specific number of frames. The specification is listed below.
+
+Some notes about interpreting the specification:
+- Tag names as case-insensitive
+- If the style requires 4 wobble animations, the frame layout would look like this:
+```
+                                                    Tag
+ ____________________________________________________________________________________________________________
+|                                                                                                            |
+         Wobble 1                   Wobble 2                   Wobble 3                    Wobble 4
+ _________________________  _________________________  _________________________  ___________________________
+|                         ||                         ||                         ||                           | 
+ Frame 1, Frame 2, Frame 3  Frame 4, Frame 5, Frame 6  Frame 7, Frame 8, Frame 9  Frame 10, Frame 11 Frame 12
+```
+
 ### Animation Style - None
 - Tag names: neutral
-- \# of frames for each tag: 3 (1 set of wobble animation)
+- \# of frames for each tag: 3 (1 wobble animation)
 
 ### Animation Style - Text
 - Tag names: text
-- \# of frames for each tag: 3 (1 set of wobble animation)
+- \# of frames for each tag: 3 (1 wobble animation)
  
 
 ### Animation Style - Directional
 - Tag names: left, up, right, down
-- \# of frames for each tag: 3 (1 set of wobble animation)
+- \# of frames for each tag: 3 (1 wobble animation)
 
 ### Animation Style - Animated
 - Tag names: neutral
-- \# of frames for each tag: 12 (4 sets of wobble animations in sequential order)
+- \# of frames for each tag: 12 (4 wobble animations)
+  - Wobble animations within each tag are cycled at every turn.
 
 ### Animation Style - Animated Directional
 - Tag names: left, up, right, down
-- \# of frames for each tag: 12 (4 sets of wobble animations in sequential order)
+- \# of frames for each tag: 12 (4 wobble animations)
+  - Wobble animations within each tag are cycled at every turn.
 
 ### Animation Style - Character
 - Tag names: left, up, right, down, sleep_l, sleep_u, sleep_r, sleep_d
-- \# of frames for each normal tag: 12 (4 sets of wobble animations in sequential order)
-- \# of frames for each sleep tag: 3 (1 set of wobble animation)
+- \# of frames for tags `left, up, right, down`: 12 (4 wobble animations)
+  - Wobble animations within each tag are cycled whenever the object moves. This is their walking animation.
+- \# of frames for tags `sleep_l, sleep_u, sleep_r, sleep_d`: 3 (1 wobble animation)
 
 ### Animation Style - Tiled
 - Tag names: neutral, r, u, ru, l, rl, ul, rul, d, rd, ud, rud, ld, rld, uld, ruld
