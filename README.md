@@ -12,6 +12,14 @@ A script for exporting baba sprites created in aseprite
 
 <img src="preview.png" alt="drawing" width="1000"/>
 
+## Update History (because I forgot to do this before)
+- 8/26/21
+  - Fixed "character" template not setting sleep tags correctly
+  - If exporting, the dialog tries to auto-guess which animation type you are exporting based on which tags are present. For tiled_slices, it looks at the current slices
+- 5/25/21
+  - Added ability to generate templates
+  - Added "tiled_slices" option as an alternative for "tiled" animation style
+
 ## Options
 - **Animation Style** - the sprite format (details explained in the next section)
 - **Sprite Name** - the name of the sprite. The names of the output folder and exported images will start with this.

@@ -152,7 +152,7 @@ end
 local function check_tag_requirements(tag_type)
     local spr_tags = {}
     for i, tag in ipairs(sprite.tags) do
-        local tag_name = string.lower(tag.name)
+        local tag_name = tag.name
 
         if spr_tags[tag_name] == nil then
             spr_tags[tag_name] = 0
@@ -395,9 +395,15 @@ function generate_tag_template(tiling, name)
     end
     curr_frame_num = 1
     for _,tag in pairs(tag_order[tiling]) do
-        new_tag = sprite:newTag(curr_frame_num, curr_frame_num + frames_per_set*3-1)
+        local num_frames = frames_per_set * 3
+        if sleep_tags[tag] then
+            num_frames = 3
+        end
+
+        new_tag = sprite:newTag(curr_frame_num, curr_frame_num + num_frames-1)
         new_tag.name = tag
-        curr_frame_num = curr_frame_num + frames_per_set*3
+
+        curr_frame_num = curr_frame_num + num_frames
     end
 end
 
@@ -462,11 +468,74 @@ function generate_tiled_slice_template(name)
 
 end
 
+function predict_anim_type()
+    if sprite then
+        local anim_priority = {
+            "tiled",
+            "character",
+            "directional",
+            "animated_direction",
+            "text",
+            "none",
+            "animated",
+        }
+        local tag_check = {}
+        for _, option in ipairs(tiling_options) do
+            tag_check[option] = 0
+        end
+
+        for i,tag in ipairs(sprite.tags) do
+            for _, option in ipairs(tiling_options) do
+                if option ~= "tiled_slices" then
+                    for _, required_tag in ipairs(tag_order[option]) do
+                        if tag.name == required_tag then
+
+                            -- local valid = false
+                            -- if option == "animated" or option == "animated_direction" or (option == "character" and required_tag:sub(1,6) ~= "sleep_") then
+                            --     valid = tag.frames == 12
+                            -- else
+                            --     valid = tag.frames == 3
+                            -- end
+
+                            -- if valid then
+                            tag_check[option] = tag_check[option] + 1
+                            break
+                            -- end
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Special case for tiled_slices animation style
+        local valid_slice_count = 0
+        for i, slice in ipairs(sprite.slices) do
+            for _, slice_name_check in ipairs(slice_order) do
+                if slice.name == slice_name_check then
+                    valid_slice_count = valid_slice_count + 1
+                    break
+                end
+            end
+        end
+        if valid_slice_count == #slice_order then
+            return "tiled_slices"
+        end
+
+        for _, a in ipairs(anim_priority) do
+            if tag_check[a] and tag_check[a] == #tag_order[a] then
+                return a
+            end
+        end
+    end
+    return "none"
+end
+
 
 local dir_name = ""
 local filename = ""
 
 local all_layers = {}
+local predicted_anim_style = predict_anim_type()
 if sprite then
     dir_name, filename = string.match(sprite.filename, "(.*)\\(.*)%.")
 
@@ -481,6 +550,7 @@ for i,v in ipairs(all_layers) do
 end
 
 local dlg = Dialog("Baba Sprite Export/Generate Template")
+
 local enable_export = sprite ~= nil 
 
 dlg:radio{ id="export", text="Export", label="Mode", selected=true,
@@ -490,6 +560,7 @@ dlg:radio{ id="export", text="Export", label="Mode", selected=true,
             :modify{id="layer", visible=true, enabled=enable_export}
             :modify{id="notify", visible=true, enabled=enable_export}
             :modify{id="confirm", text="Export", enabled=enable_export}
+            :modify{ id="brief", text="Export the current Baba sprite."}
     end
 }
 dlg:radio{ id="template", text="Template",
@@ -499,16 +570,18 @@ dlg:radio{ id="template", text="Template",
             :modify{id="layer", visible=false, enabled=true}
             :modify{id="notify", visible=false, enabled=true}
             :modify{id="confirm", text="Generate", enabled=true}
+            :modify{ id="brief", text="Create a template baba sprite with export tags."}
     end
 }
+dlg:label{ id="brief", text="Export the current Baba sprite."}
 dlg:separator{}
 
-dlg:combobox { id="tiling", label="Animation Style:", option="none", options=tiling_options}
+dlg:combobox { id="tiling", label="Animation Style:", option=predicted_anim_style, options=tiling_options}
     :entry    { id="name", text=filename, label="Sprite Name:"}
     :combobox { id="layer", options=layer_options, option="Visible Layers", label="Layer:"}
     :label    { id="notify", text="Note: running this script will save the current file."}
-    :button   { id="confirm", text="Export"}
-    :button   { id="cancel", text="Cancel"}
+    :button   { id="confirm", text="Export", focus=true}
+    :button   { id="cancel", text="Cancel", focus=false}
 
 dlg:modify{id="tiling", visible=true, enabled=enable_export}
     :modify{id="name", visible=true, enabled=enable_export}
