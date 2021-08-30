@@ -39,20 +39,6 @@ local char_tile_map =
     uld=14,
     ruld=15
 }
-local dir_tags = 
-{ 
-    right=true, 
-    up=true, 
-    left=true, 
-    down=true
-}
-local arrow_tags = 
-{ 
-    right_a=true, 
-    up_a=true, 
-    left_a=true, 
-    down_a=true
-}
 local sleep_tags = 
 {
     sleep_l=true, 
@@ -79,12 +65,6 @@ local tile_tags =
     uld=true,
     ruld=true
 }
-local diag_tags = {
-    diag_ur=true,
-    diag_ul=true,
-    diag_dr=true,
-    diag_dl=true
-}
 local tiling_options = {
     "none", 
     "text",
@@ -94,19 +74,68 @@ local tiling_options = {
     "character", 
     "tiled",
     "tiled_slices",
-    -- "arrow",
-    -- "diag",
 }
-local tag_order = {
-    none =               {"neutral"},
-    directional =        {"right","up","left","down"},
-    animated_direction = {"right","up","left","down"},
-    animated =           {"neutral"},
-    character =          {"right","up","left","down","sleep_r","sleep_u","sleep_l","sleep_d"},
-    text =               {"text"},
-    tiled =              {"neutral","r","u","ru","l","rl","ul","rul","d","rd","ud","rud","ld","rld","uld","ruld"},
-    arrow =              {"right_a","up_a","left_a","down_a"},
-    diag =               {"diag_ur,diag_ul,diag_dr,diag_dl"},
+local anim_priority = {
+    "tiled",
+    "character",
+    "directional",
+    "animated_direction",
+    "text",
+    "none",
+    "animated",
+}
+local all_tags = {
+    none = {
+        {name = "neutral", animated = false, frame_num = 3, direction = char_tile_map.neutral},
+    },
+    directional = {
+        {name = "right", animated = false, frame_num = 3, direction = char_tile_map.right},
+        {name = "up",    animated = false, frame_num = 3, direction = char_tile_map.up},
+        {name = "left",  animated = false, frame_num = 3, direction = char_tile_map.left},
+        {name = "down",  animated = false, frame_num = 3, direction = char_tile_map.down},
+    },
+    animated = {
+        {name = "neutral", animated = false, frame_num = 12, direction = char_tile_map.neutral},
+    },
+    animated_direction = {
+        {name = "right", animated = true, frame_num = 12, direction = char_tile_map.right},
+        {name = "up",    animated = true, frame_num = 12, direction = char_tile_map.up},
+        {name = "left",  animated = true, frame_num = 12, direction = char_tile_map.left},
+        {name = "down",  animated = true, frame_num = 12, direction = char_tile_map.down},
+    },
+    character = {
+        {name = "right", animated = true, frame_num = 12, direction = char_tile_map.right},
+        {name = "up",    animated = true, frame_num = 12, direction = char_tile_map.up},
+        {name = "left",  animated = true, frame_num = 12, direction = char_tile_map.left},
+        {name = "down",  animated = true, frame_num = 12, direction = char_tile_map.down},
+        {name = "sleep_r", animated = false, frame_num = 3, direction = char_tile_map.sleep_r},
+        {name = "sleep_u", animated = false, frame_num = 3, direction = char_tile_map.sleep_u},
+        {name = "sleep_l", animated = false, frame_num = 3, direction = char_tile_map.sleep_l},
+        {name = "sleep_d", animated = false, frame_num = 3, direction = char_tile_map.sleep_d},
+    },
+    text = {
+        {name = "text", animated = false, frame_num = 3, direction = char_tile_map.neutral},
+    },
+    tiled = {
+        {name = "r",    animated = false, frame_num = 3, direction = char_tile_map.r},
+        {name = "u",    animated = false, frame_num = 3, direction = char_tile_map.u},
+        {name = "ru",   animated = false, frame_num = 3, direction = char_tile_map.ru},
+        {name = "l",    animated = false, frame_num = 3, direction = char_tile_map.l},
+        {name = "rl",   animated = false, frame_num = 3, direction = char_tile_map.rl},
+        {name = "ul",   animated = false, frame_num = 3, direction = char_tile_map.ul},
+        {name = "rul",  animated = false, frame_num = 3, direction = char_tile_map.rul},
+        {name = "d",    animated = false, frame_num = 3, direction = char_tile_map.d},
+        {name = "rd",   animated = false, frame_num = 3, direction = char_tile_map.rd},
+        {name = "ud",   animated = false, frame_num = 3, direction = char_tile_map.ud},
+        {name = "rud",  animated = false, frame_num = 3, direction = char_tile_map.rud},
+        {name = "ld",   animated = false, frame_num = 3, direction = char_tile_map.ld},
+        {name = "rld",  animated = false, frame_num = 3, direction = char_tile_map.rld},
+        {name = "uld",  animated = false, frame_num = 3, direction = char_tile_map.uld},
+        {name = "ruld", animated = false, frame_num = 3, direction = char_tile_map.ruld},
+    },
+    tiled_slices = {
+        {name = "slices", animated = false, frame_num = 3, direction = 0},
+    }
 }
 local slice_order = {
     "neutral", "r",   "rl",   "l",
@@ -115,39 +144,7 @@ local slice_order = {
     "u",       "ru",  "rul",  "ul"
 }
 
-local tags_to_check_for = 
-{ 
-    none={neutral=true},
-    directional=dir_tags,
-    animated_direction=dir_tags,
-    animated={neutral=true},
-    character={},
-    text={text=true},
-    tiled=tile_tags,
-    arrow=arrow_tags,
-    diag=diag_tags,
-    tiled_slices={slices=true},
-}
-for tag,_ in pairs(dir_tags) do
-    tags_to_check_for.character[tag] = true
-end
-for tag,_ in pairs(sleep_tags) do
-    tags_to_check_for.character[tag] = true
-end
 local sprite = app.activeSprite
-
-local function starts_with(str, start)
-    return str:sub(1, #start) == start
-end
-
-local function contains(arr, elem)
-    for _,a in pairs(arr) do
-        if a == elem then 
-            return true
-        end
-    end
-    return false
-end
 
 local function check_tag_requirements(tag_type)
     local spr_tags = {}
@@ -160,11 +157,11 @@ local function check_tag_requirements(tag_type)
         spr_tags[tag_name] = spr_tags[tag_name] + 1
     end
     
-    for tag, _ in pairs(tags_to_check_for[tag_type]) do
-        if spr_tags[tag] == nil then
-            error(string.format("\"%s\" tiling type requires a tag named \"%s\" to be defined in the sprite.", tag_type, tag))
-        elseif spr_tags[tag] > 1 then
-            error(string.format("Cannot export with multiple tags named \"%s\". Please remove or rename each duplicate tag.", tag))
+    for _, check_tag in ipairs(all_tags[tag_type]) do
+        if spr_tags[tag.name] == nil then
+            error(string.format("\"%s\" tiling type requires a tag named \"%s\" to be defined in the sprite.", tag_type, check_tag.name))
+        elseif spr_tags[tag.name] > 1 then
+            error(string.format("Cannot export with multiple tags named \"%s\". Please remove or rename each duplicate tag.", check_tag.name))
         end
     end
 
@@ -243,41 +240,26 @@ local function export_spr(spr_type, layer, spr_name, dir_name)
         local startFrame = tag.fromFrame.frameNumber
         local endFrame = tag.toFrame.frameNumber
         local state_num = char_tile_map[tag.name]
-        local animated = -1
-        local text = false
         local tag_name = string.lower(tag.name)
+        
+        local animated = -1
+        for _, check_tag in ipairs(all_tags[spr_type]) do
+            if check_tag.name == tag_name then
+                if check_tag.animated then
+                    animated = 1
+                else
+                    animated = 0
+                end
+            end
+        end
 
-        if dir_tags[tag_name] then
-            if spr_type == "character" or spr_type == "animated_direction" then
-                animated = 1
-            elseif spr_type == "directional" then
-                animated = 0
-            end
-        elseif sleep_tags[tag_name] and spr_type == "character" then
-            -- Sleep sprites
-            animated = 0
-        elseif tag_name == "neutral" then
-            if spr_type == "none" or spr_type == "tiled" then
-                animated = 0
-            elseif spr_type == "animated" then
-                animated = 1
-            end
-        elseif tile_tags[tag_name] and spr_type == "tiled" then
-            animated = 0
-        elseif tag_name == "text" and spr_type == "text" then
-            animated = 0
+        local text = false
+        if tag_name == "text" and spr_type == "text" then
             text = true
-        elseif arrow_tags[tag_name] then
-            animated = 0
-        elseif diag_tags[tag_name] then
-            animated = 1
         end
 
         if animated == 0 then
             local filename = spr_name
-            if spr_type == "arrow" and arrow_tags[tag_name] then
-                filename = filename..string.sub(tag_name, 1, #tag_name-2)
-            end
             make_static_export_cmd(startFrame, endFrame, state_num, cmds, layer, text, filename, out_dir)
             tag_count = tag_count + 1
         elseif animated == 1 then 
@@ -373,35 +355,16 @@ function generate_tag_template(tiling, name)
     local sprite = Sprite(24,24)
     sprite.filename = name
 
-    local one_set_per_tag_tilings = {none=true, text=true, directional=true, tiled=true, diag=true, arrow=true}
-    local four_set_per_tag_tilings = {animated=true, animated_direction=true, character=true}
-
-    local frames_per_set = 1
-    if four_set_per_tag_tilings[tiling] then
-        frames_per_set = 4
-    end
-    local tags_to_generate = tags_to_check_for[tiling]
-
-    for tag,_ in pairs(tags_to_check_for[tiling]) do
-        if sleep_tags[tag] then
-            for i=1,3 do
-                frame = sprite:newEmptyFrame(i)
-            end
-        else
-            for i=1,frames_per_set*3 do
-                frame = sprite:newEmptyFrame(i)
-            end
+    for _, tag in ipairs(all_tags[tiling]) do
+        for i=1,tag.frame_num do
+            frame = sprite:newEmptyFrame(i)
         end
     end
     curr_frame_num = 1
-    for _,tag in pairs(tag_order[tiling]) do
-        local num_frames = frames_per_set * 3
-        if sleep_tags[tag] then
-            num_frames = 3
-        end
-
+    for _, check_tag in pairs(all_tags[tiling]) do
+        local num_frames = check_tag.frame_num
         new_tag = sprite:newTag(curr_frame_num, curr_frame_num + num_frames-1)
-        new_tag.name = tag
+        new_tag.name = check_tag.name
 
         curr_frame_num = curr_frame_num + num_frames
     end
@@ -470,15 +433,6 @@ end
 
 function predict_anim_type()
     if sprite then
-        local anim_priority = {
-            "tiled",
-            "character",
-            "directional",
-            "animated_direction",
-            "text",
-            "none",
-            "animated",
-        }
         local tag_check = {}
         for _, option in ipairs(tiling_options) do
             tag_check[option] = 0
@@ -487,20 +441,10 @@ function predict_anim_type()
         for i,tag in ipairs(sprite.tags) do
             for _, option in ipairs(tiling_options) do
                 if option ~= "tiled_slices" then
-                    for _, required_tag in ipairs(tag_order[option]) do
-                        if tag.name == required_tag then
-
-                            -- local valid = false
-                            -- if option == "animated" or option == "animated_direction" or (option == "character" and required_tag:sub(1,6) ~= "sleep_") then
-                            --     valid = tag.frames == 12
-                            -- else
-                            --     valid = tag.frames == 3
-                            -- end
-
-                            -- if valid then
+                    for _, required_tag in ipairs(all_tags[option]) do
+                        if tag.name == required_tag.name then
                             tag_check[option] = tag_check[option] + 1
                             break
-                            -- end
                         end
                     end
                 end
@@ -522,7 +466,7 @@ function predict_anim_type()
         end
 
         for _, a in ipairs(anim_priority) do
-            if tag_check[a] and tag_check[a] == #tag_order[a] then
+            if tag_check[a] and tag_check[a] == #all_tags[a] then
                 return a
             end
         end
