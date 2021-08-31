@@ -10,10 +10,9 @@ A script for exporting baba sprites created in aseprite
 - Run the script in Aseprite while on a current sprite to get a dialog box
 - The exported sprites will be in a folder `<path to aseprite file>\<Sprite name>_out`
 
-<img src="preview.png" alt="drawing" width="1000"/>
-
----
 # Changelog (because I forgot to do this before)
+- 8/31/21
+  - Added the ability to import a baba sprite from a sequence of pngs
 - 8/26/21
   - Fixed "character" template not setting sleep tags correctly
   - If exporting, the dialog tries to auto-guess which animation type you are exporting based on which tags are present. For tiled_slices, it looks at the current slices
@@ -21,11 +20,26 @@ A script for exporting baba sprites created in aseprite
   - Added ability to generate templates
   - Added "tiled_slices" option as an alternative for "tiled" animation style
 
-# Generating Templates
-To save the hassle of making the tags manually, there is now an option to make a template sprite. This creates a new aseprite file with the tags already set. So you can just focus on filling in the frames.
 
-<img src="template_demo.gif" alt="drawing" width="1000"/>
+# Features
+(Note: these features rely on the aseprite file formatted in a specific way. See the "Tag Specification" section)
+## Importing
+Import a baba sprite from a sequence of pngs that are formatted similar to the base game. This will create a  aseprite file with the baba sprite, formatted in a way that is exportable with the export feature.
 
+<img src="import_demo.gif" alt="drawing" width="800"/>
+---
+## Exporting
+You can export an Aseprite file formatted accordingly into the required png files needed for Baba Is You. This will create a folder in the same directory as the aseprite file. The contents of this folder can be copied to `<baba install folder>\Data\Sprites` for the entire game or `<baba install folder>\Data\Worlds\<levelpack folder>\Sprites` for levelpack specific sprites.
+<img src="export_demo.gif" alt="drawing" width="800"/>
+
+
+---
+## Templates
+To save the hassle of making the tags manually, there is an option to make a template sprite. This creates a new aseprite file with the tags already set based on the "Tag Specification section" (see below). So you can focus on filling in the frames.
+
+<img src="template_demo.gif" alt="drawing" width="800"/>
+
+---
 # Options
 - **Animation Style** - the sprite format (details explained in the next section)
 - **Sprite Name** - the name of the sprite. The names of the output folder and exported images will start with this.
