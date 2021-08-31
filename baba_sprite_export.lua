@@ -117,6 +117,7 @@ local all_tags = {
         {name = "text", animated = false, frame_num = 3, direction = char_tile_map.neutral},
     },
     tiled = {
+        {name = "neutral",animated = false, frame_num = 3, direction = char_tile_map.neutral},
         {name = "r",    animated = false, frame_num = 3, direction = char_tile_map.r},
         {name = "u",    animated = false, frame_num = 3, direction = char_tile_map.u},
         {name = "ru",   animated = false, frame_num = 3, direction = char_tile_map.ru},
@@ -143,7 +144,7 @@ local slice_order = {
     "ud",      "rud", "ruld", "uld",
     "u",       "ru",  "rul",  "ul"
 }
-
+local baba_png_pattern = "^(.*[^a-zA-Z0-9_])(([a-zA-Z0-9_]+)_(%d+)_(%d+)%.png)$"
 local sprite = app.activeSprite
 
 local function check_tag_requirements(tag_type)
@@ -158,9 +159,9 @@ local function check_tag_requirements(tag_type)
     end
     
     for _, check_tag in ipairs(all_tags[tag_type]) do
-        if spr_tags[tag.name] == nil then
+        if spr_tags[check_tag.name] == nil then
             error(string.format("\"%s\" tiling type requires a tag named \"%s\" to be defined in the sprite.", tag_type, check_tag.name))
-        elseif spr_tags[tag.name] > 1 then
+        elseif spr_tags[check_tag.name] > 1 then
             error(string.format("Cannot export with multiple tags named \"%s\". Please remove or rename each duplicate tag.", check_tag.name))
         end
     end
@@ -205,8 +206,6 @@ local function make_export_cmd(startFrame, endFrame, state_num, cmds, layer_opti
         outfile_format = string.format("\"%s\\%s_%i_{frame1}.png\"", out_dir, spr_name, state_num)
     end
     local cmd = [["%s" -b "%s" %s --frame-range %i,%i --save-as %s]]
-    -- local cmd = "D:\\Documents\\Aseprite\\Aseprite -b \"%s\" %s --frame-range %i,%i --save-as %s"
-    -- local cmd = "\""..app.fs.appPath.."\" -b \"%s\" %s --frame-range %i,%i --save-as %s"
     cmd = string.format(cmd, app.fs.appPath, sprite.filename, layer_arg, startFrame-1, endFrame-1, outfile_format)
     table.insert(cmds, cmd)
 end
@@ -474,6 +473,91 @@ function predict_anim_type()
     return "none"
 end
 
+function import_baba_sprite(path, tiling)
+    local dir_path, filename, obj_name, dir, frame_num = string.match(path, baba_png_pattern)
+    if filename then
+        local baseimage = Image{ fromFile=path }
+        local sprite = Sprite(baseimage.width,baseimage.height)
+        if tiling == "tiled_slices" then
+            sprite.width = sprite.width * 4
+            sprite.height = sprite.height * 4
+        end
+
+        local missing_files = {}
+        sprite.filename = obj_name
+        app.transaction(
+            function()
+                local layer = sprite.layers[1]
+                local total_frames = 1
+                sprite:deleteFrame(1)
+
+                if tiling ~= "tiled_slices" then
+                    for _, ref_tag in ipairs(all_tags[tiling]) do
+                        local curr_dir_offset = 0
+                        local start_tag = total_frames
+                        for curr_frame=3,ref_tag.frame_num,3 do
+                            local curr_dir = ref_tag.direction + curr_dir_offset
+                            for i=1,3 do
+                                local curr_path = dir_path..obj_name.."_"..tostring(curr_dir).."_"..tostring(i)..".png"
+                                local frame = sprite:newFrame(total_frames)
+                                total_frames = total_frames + 1
+
+                                if not app.fs.isFile(curr_path) then
+                                    table.insert(missing_files, curr_path)
+                                else
+                                    local image = Image{ fromFile = curr_path }
+                                    sprite:newCel(layer, frame, image, Point(0,0))
+                                end
+                            end
+                            curr_dir_offset = curr_dir_offset + 1
+                        end 
+                        local end_tag = total_frames-1
+                        local new_tag = sprite:newTag(start_tag, end_tag)
+                        new_tag.name = ref_tag.name
+                    end
+                else
+                    for i=1,3 do
+                        frame = sprite:newEmptyFrame(i)
+                        sprite:newCel(layer, frame)
+                    end
+                    new_tag = sprite:newTag(1, 3)
+                    new_tag.name = "slices"
+
+                    for i, slice_name in ipairs(slice_order) do
+                        local x = (i-1) % 4 * baseimage.width
+                        local y = math.floor((i-1) / 4) * baseimage.width
+                        local slice = sprite:newSlice(Rectangle(x,y,baseimage.width,baseimage.height))
+                        slice.name = slice_name
+                        slice.color = Color{r=0, g=0, b=255}
+                        local slice_layer = sprite:newLayer()
+
+                        local curr_dir = char_tile_map[slice_name]
+
+                        for j=1,3 do
+                            local curr_path = dir_path..obj_name.."_"..tostring(curr_dir).."_"..tostring(j)..".png"
+                            local frame = sprite.frames[j]
+
+                            if not app.fs.isFile(curr_path) then
+                                table.insert(missing_files, curr_path)
+                            else
+                                local image = Image{ fromFile = curr_path }
+                                sprite:newCel(slice_layer, frame, image, Point(x,y))
+                            end
+                        end
+                    end
+
+                    sprite:flatten()
+                end
+            end
+        )
+
+        if #missing_files > 0 then
+            table.insert(missing_files, 1, "Sprite partially imported with missing files. Some of the frames will be empty. Make sure you have chosen the right animation style. (You chose \""..tiling.."\")")
+            table.insert(missing_files, 2, "Missing files:")
+            app.alert{text=missing_files}
+        end
+    end
+end
 
 local dir_name = ""
 local filename = ""
@@ -493,34 +577,71 @@ for i,v in ipairs(all_layers) do
     table.insert(layer_options, v)
 end
 
-local dlg = Dialog("Baba Sprite Export/Generate Template")
+local dlg = Dialog("Baba Sprite Import/Export/Generate Template")
+local orig_bounds = nil
 
 local enable_export = sprite ~= nil 
 
 dlg:radio{ id="export", text="Export", label="Mode", selected=true,
     onclick=function()
+        local bounds = dlg.bounds
+        dlg.bounds = Rectangle(bounds.x, bounds.y, orig_bounds.width, orig_bounds.height)
+
         dlg:modify{id="tiling", visible=true, enabled=enable_export}
             :modify{id="name", visible=true, enabled=enable_export}
             :modify{id="layer", visible=true, enabled=enable_export}
             :modify{id="notify", visible=true, enabled=enable_export}
+            :modify{id="file", visible=false, enabled=enable_export}
+            :modify{id="filedesc", visible=false, enabled=enable_export}
             :modify{id="confirm", text="Export", enabled=enable_export}
-            :modify{ id="brief", text="Export the current Baba sprite."}
+            :modify{id="brief", text="Export the current Baba sprite."}
     end
 }
+dlg:radio{ id="import", text="Import",
+    onclick=function()
+        local bounds = dlg.bounds
+        dlg.bounds = Rectangle(bounds.x, bounds.y, orig_bounds.width + 120, orig_bounds.height)
+
+        dlg:modify{id="tiling", visible=true, enabled=true}
+            :modify{id="name", visible=false, enabled=true}
+            :modify{id="layer", visible=false, enabled=true}
+            :modify{id="notify", visible=false, enabled=true}
+            :modify{id="file", visible=true, enabled=true}
+            :modify{id="filedesc", visible=true, enabled=true}
+            :modify{id="confirm", text="Import", enabled=false}
+            :modify{id="brief", text="Import a Baba sprite from a sequence of images."}
+    end
+}
+
 dlg:radio{ id="template", text="Template",
     onclick=function()
+        local bounds = dlg.bounds
+        dlg.bounds = Rectangle(bounds.x, bounds.y, orig_bounds.width, orig_bounds.height)
+
         dlg:modify{id="tiling", visible=true, enabled=true}
             :modify{id="name", visible=true, enabled=true}
             :modify{id="layer", visible=false, enabled=true}
             :modify{id="notify", visible=false, enabled=true}
+            :modify{id="file", visible=false, enabled=true}
+            :modify{id="filedesc", visible=false, enabled=true}
             :modify{id="confirm", text="Generate", enabled=true}
-            :modify{ id="brief", text="Create a template baba sprite with export tags."}
+            :modify{id="brief", text="Create a template baba sprite with export tags."}
     end
 }
+
 dlg:label{ id="brief", text="Export the current Baba sprite."}
 dlg:separator{}
 
-dlg:combobox { id="tiling", label="Animation Style:", option=predicted_anim_style, options=tiling_options}
+dlg :label { id="filedesc", text="Select any png in the baba sprite (filename has to be \"<name>_X_Y.png\")"}
+dlg :file  { id="file", filetypes = {"png"},
+        onchange=function()
+            local filename = string.match(dlg.data.file, baba_png_pattern)
+            local is_valid = filename ~= nil
+            dlg:modify{id="confirm", enabled=is_valid}        
+        end
+    }
+
+dlg :combobox { id="tiling", label="Animation Style:", option=predicted_anim_style, options=tiling_options}
     :entry    { id="name", text=filename, label="Sprite Name:"}
     :combobox { id="layer", options=layer_options, option="Visible Layers", label="Layer:"}
     :label    { id="notify", text="Note: running this script will save the current file."}
@@ -531,8 +652,11 @@ dlg:modify{id="tiling", visible=true, enabled=enable_export}
     :modify{id="name", visible=true, enabled=enable_export}
     :modify{id="layer", visible=true, enabled=enable_export}
     :modify{id="notify", visible=true, enabled=enable_export}
+    :modify{id="file", visible=false, enabled=enable_export}
+    :modify{id="filedesc", visible=false, enabled=enable_export}
     :modify{id="confirm", text="Export", enabled=enable_export}
 
+orig_bounds = dlg.bounds
 
 local input = dlg:show().data
 
@@ -550,5 +674,7 @@ if input.confirm then
         end
     elseif input.template then
         generate_template(input.tiling, input.name)
+    elseif input.import then
+        import_baba_sprite(input.file, input.tiling)
     end
 end
