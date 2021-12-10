@@ -11,6 +11,8 @@ A script for exporting baba sprites created in aseprite
 - The exported sprites will be in a folder `<path to aseprite file>\<Sprite name>_out`
 
 # Changelog (because I forgot to do this before)
+- 12/10/21
+  - Fixed not being able to export sprites with "Animated" style
 - 8/31/21
   - Added the ability to import a baba sprite from a sequence of pngs
 - 8/26/21

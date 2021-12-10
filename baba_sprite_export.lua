@@ -95,7 +95,7 @@ local all_tags = {
         {name = "down",  animated = false, frame_num = 3, direction = char_tile_map.down},
     },
     animated = {
-        {name = "neutral", animated = false, frame_num = 12, direction = char_tile_map.neutral},
+        {name = "neutral", animated = true, frame_num = 12, direction = char_tile_map.neutral},
     },
     animated_direction = {
         {name = "right", animated = true, frame_num = 12, direction = char_tile_map.right},
