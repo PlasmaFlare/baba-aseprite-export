@@ -644,7 +644,7 @@ dlg :file  { id="file", filetypes = {"png"},
 dlg :combobox { id="tiling", label="Animation Style:", option=predicted_anim_style, options=tiling_options}
     :entry    { id="name", text=filename, label="Sprite Name:"}
     :combobox { id="layer", options=layer_options, option="Visible Layers", label="Layer:"}
-    :label    { id="notify", text="Note: running this script will save the current file."}
+    :label    { id="notify", text="Note: Make sure you saved your file as an .ase/.aseprite file before exporting."}
     :button   { id="confirm", text="Export", focus=true}
     :button   { id="cancel", text="Cancel", focus=false}
 
