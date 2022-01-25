@@ -477,7 +477,7 @@ function import_baba_sprite(path, tiling)
     local dir_path, filename, obj_name, dir, frame_num = string.match(path, baba_png_pattern)
     if filename then
         local baseimage = Image{ fromFile=path }
-        local sprite = Sprite(baseimage.width,baseimage.height)
+        local sprite = Sprite(baseimage.width,baseimage.height, ColorMode.RGB)
         if tiling == "tiled_slices" then
             sprite.width = sprite.width * 4
             sprite.height = sprite.height * 4
@@ -505,7 +505,13 @@ function import_baba_sprite(path, tiling)
                                 if not app.fs.isFile(curr_path) then
                                     table.insert(missing_files, curr_path)
                                 else
-                                    local image = Image{ fromFile = curr_path }
+                                    -- We load the src file into its own sprite before copying to a new image. This is to handle different color encodings other than RGB.
+                                    -- The policy is that I want to work with RGB files only.
+                                    local srcsprite = Sprite{ fromFile = curr_path }
+                                    local image = Image(srcsprite.width, srcsprite.height, ColorMode.RGB)
+                                    image:drawSprite(srcsprite)
+                                    srcsprite:close()
+
                                     sprite:newCel(layer, frame, image, Point(0,0))
                                 end
                             end
