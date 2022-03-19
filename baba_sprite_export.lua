@@ -37,7 +37,39 @@ local char_tile_map =
     ld=12,
     rld=13,
     uld=14,
-    ruld=15
+    ruld=15,
+
+    rue=16,
+    rule=17,
+    rude=18,
+    rulde=19,
+    ulq=20,
+    rulq=21,
+    uldq=22,
+    ruldq=23,
+    ruleq=24,
+    ruldeq=25,
+    ldz=26,
+    rldz=27,
+    uldz=28,
+    ruldz=29,
+    ruldez=30,
+    uldqz=31,
+    ruldqz=32,
+    ruldeqz=33,
+    rdc=34,
+    rudc=35,
+    rldc=36,
+    ruldc=37,
+    rudec=38,
+    ruldec=39,
+    ruldqc=40,
+    ruldeqc=41,
+    rldzc=42,
+    ruldzc=43,
+    ruldezc=44,
+    ruldqzc=45,
+    ruldeqzc=46,
 }
 local sleep_tags = 
 {
@@ -65,6 +97,60 @@ local tile_tags =
     uld=true,
     ruld=true
 }
+local diag_tile_tags = {
+    neutral=true,
+    r=true,
+    u=true,
+    ru=true,
+    l=true,
+    rl=true,
+    ul=true,
+    rul=true,
+    d=true,
+    rd=true,
+    ud=true,
+    rud=true,
+    ld=true,
+    rld=true,
+    uld=true,
+    ruld=true,
+
+
+    ruldq=true,
+    rldc=true,
+    rldz=true,
+    rulde=true,
+    ruldeq=true,
+    ruldqc=true,
+    ruldzc=true,
+
+    rudc=true,
+    ruldezc=true,
+    ruldqzc=true,
+    uldz=true,
+    rdc=true,
+    rldzc=true,
+    ldz=true,
+    ruldec=true,
+
+    rude=true,
+    ruldeqc=true,
+    ruldeqz=true,
+    uldq=true,
+    rudec=true,
+    ruldeqzc=true,
+    uldqz=true,
+    ruldez=true,
+
+    ruldz=true,
+    rule=true,
+    rulq=true,
+    ruldc=true,
+    rue=true,
+    ruleq=true,
+    ulq=true,
+    ruldqz=true,
+}
 local tiling_options = {
     "none", 
     "text",
@@ -74,6 +160,7 @@ local tiling_options = {
     "character", 
     "tiled",
     "tiled_slices",
+    "diag_tiled_slices",
 }
 local anim_priority = {
     "tiled",
@@ -136,13 +223,22 @@ local all_tags = {
     },
     tiled_slices = {
         {name = "slices", animated = false, frame_num = 3, direction = 0},
-    }
+    },
+    diag_tiled_slices = {
+        {name = "slices", animated = false, frame_num = 3, direction = 0},
+    },
 }
 local slice_order = {
-    "neutral", "r",   "rl",   "l",
-    "d",       "rd",  "rld",  "ld",
+    "neutral", "r",   "rl",   "l",  
+    "d",       "rd",  "rld",  "ld", 
     "ud",      "rud", "ruld", "uld",
-    "u",       "ru",  "rul",  "ul"
+    "u",       "ru",  "rul",  "ul"  
+}
+local slice_order_diag = {
+    "neutral", "r",   "rl",   "l",      "ruldq", "rldc",    "rldz",     "rulde",        "ruldeq", "ruldqc",   "ruldzc",   "",
+    "d",       "rd",  "rld",  "ld",     "rudc",  "ruldezc", "ruldqzc", "uldz",          "rdc",    "rldzc",    "ldz",      "ruldec",
+    "ud",      "rud", "ruld", "uld",    "rude",  "ruldeqc", "ruldeqz", "uldq",          "rudec",  "ruldeqzc", "uldqz",    "ruldez",
+    "u",       "ru",  "rul",  "ul",     "ruldz", "rule",    "rulq",     "ruldc",        "rue",    "ruleq",    "ulq",      "ruldqz",
 }
 local baba_png_pattern = "^(.*[^a-zA-Z0-9_])(([a-zA-Z0-9_]+)_(%d+)_(%d+)%.png)$"
 local sprite = app.activeSprite
@@ -167,9 +263,28 @@ local function check_tag_requirements(tag_type)
     end
 
     if tag_type == "tiled_slices" then
+        local slice_names = {}
         for _, slice in ipairs(sprite.slices) do
             local slice_name = string.lower(slice.name)
-            if tile_tags[slice_name] == nil then
+            slice_names[slice_name] = true
+        end
+
+        for _, check_tag in ipairs(tile_tags) do
+            if slice_names[check_tag] == nil then
+                error(string.format("\"%s\" tiling type requires a slice named \"%s\" to be defined in the sprite", tag_type, slice_name))
+            end
+        end
+    end
+
+    if tag_type == "diag_tiled_slices" then
+        local slice_names = {}
+        for _, slice in ipairs(sprite.slices) do
+            local slice_name = string.lower(slice.name)
+            slice_names[slice_name] = true
+        end
+
+        for _, check_tag in ipairs(diag_tile_tags) do
+            if slice_names[check_tag] == nil then
                 error(string.format("\"%s\" tiling type requires a slice named \"%s\" to be defined in the sprite", tag_type, slice_name))
             end
         end
@@ -283,26 +398,60 @@ local function export_spr(spr_type, layer, spr_name, dir_name)
     end
 end
 
-function export_spr_slices(spr_name, layer, dir_name)
+function export_spr_slices(spr_name, layer, dir_name, gen_diagonals)
     local cmds = {}
     local out_dir = dir_name.."\\"..spr_name.."_out"
     os.execute("mkdir \""..out_dir.."\"")
 
+    local tags_to_check = tile_tags
+    if gen_diagonals then
+        tags_to_check = diag_tile_tags
+    end
+
+    local slice_count = 0
     for i, tag in ipairs(sprite.tags) do
         if string.lower(tag.name) == "slices" then
             for l, slice in ipairs(sprite.slices) do
-                if tile_tags[slice.name] then
+                if tags_to_check[slice.name] then
                     make_slice_export_cmd(cmds, spr_name, layer, tag.fromFrame.frameNumber, tag.toFrame.frameNumber, slice.name, char_tile_map[slice.name], out_dir) 
+                    slice_count = slice_count + 1
                 end
             end
         end
     end
 
-    local cmd = [[type NUL && ]] .. table.concat(cmds, " & ")
-    os.execute(cmd)
+    
+    local cmd_set = {}
+    local base_cmd = [[type NUL && ]]
+    local curr_cmd = {}
+    local curr_cmd_len = #base_cmd
+    for i=1,#cmds do
+        -- Apparently there is a max command line length that varies depending on OS. The smallest max I found was 4096 from linux. So I'll go with a max of 4000
+        if curr_cmd_len + #cmds[i] > 4000 then
+            table.insert(cmd_set, curr_cmd)
+            curr_cmd = {}
+            curr_cmd_len = #base_cmd
+        end
+
+        table.insert(curr_cmd, cmds[i])
+        curr_cmd_len = curr_cmd_len + #cmds[i]
+    end
+
+    if #curr_cmd > 0 then
+        table.insert(cmd_set, curr_cmd)
+    end
+
+    for _, c in ipairs(cmd_set) do
+        local cmd = [[type NUL && ]] .. table.concat(c, " & ")
+        os.execute(cmd)
+    end
+    
+    -- local cmd = [[type NUL && ]] .. table.concat(cmds, " & ")
+    -- os.execute(cmd)
     
 
     local confirm_dlg = Dialog()
+                :label{ label=slice_count.." Slices(s) exported" }
                 :label{ label="Output Directory: "..out_dir }
                 :button{ id="ok", text="OK" }
                 :button{ id="dir", text="Open Export Directory"}
@@ -344,7 +493,9 @@ end
 
 function generate_template(tiling, name)
     if tiling == "tiled_slices" then
-        generate_tiled_slice_template(name)
+        generate_tiled_slice_template(name, false)
+    elseif tiling == "diag_tiled_slices" then
+        generate_tiled_slice_template(name, true)
     else
         generate_tag_template(tiling, name)
     end
@@ -369,45 +520,76 @@ function generate_tag_template(tiling, name)
     end
 end
 
-function generate_tiled_slice_template(name)
-    local sprite = Sprite(96,96)
+function generate_tiled_slice_template(name, gen_diagonals)
+    local tile_width = 4
+    local tile_height = 4
+    if gen_diagonals then
+        tile_width = 12
+    end
+
+    local width = tile_width * 24
+    local height = tile_height * 24
+
+    local sprite = Sprite(width,height)
     sprite.filename = name
 
-    local image = Image(24 * 4, 24 * 4)
+    local image = Image(width, height)
 
-    for i, slice_name in ipairs(slice_order) do
-        local x = (i-1) % 4 * 24
-        local y = math.floor((i-1) / 4) * 24
-        local slice = sprite:newSlice(Rectangle(x,y,24,24))
-        slice.name = slice_name
-        slice.color = Color{r=0, g=0, b=255}
+    local order = slice_order
+    if gen_diagonals then
+        order = slice_order_diag
+    end
 
-        local guideline_color = Color{r=0, g=0, b=0}
+    for i, slice_name in ipairs(order) do
+        if #slice_name > 0 then
+            local x = (i-1) % tile_width * 24
+            local y = math.floor((i-1) / tile_width) * 24
+            local slice = sprite:newSlice(Rectangle(x,y,24,24))
+            slice.name = slice_name
+            slice.color = Color{r=0, g=0, b=255}
 
-        for w=-2,1 do
-            for h=-2,1 do
-                image:drawPixel(x + 12 + w, y + 12 + h, guideline_color)
-            end
-        end
+            local guideline_color = Color{r=0, g=0, b=0}
 
-        if slice_name ~= "neutral" then
-            for d in slice_name:gmatch"." do
-                local xmin = -2
-                local xmax = 1
-                local ymin = -2
-                local ymax = 1
-                if d == "r" then
-                    xmax = 23
-                elseif d == "u" then
-                    ymin = 0
-                elseif d == "l" then
-                    xmin = 0
-                elseif d == "d" then
-                    ymax = 23
+            for w=-4,3 do
+                for h=-4,3 do
+                    image:drawPixel(x + 12 + w, y + 12 + h, guideline_color)
                 end
-                for w=xmin,xmax do
-                    for h=ymin,ymax do
-                        image:drawPixel(x + 12 + w, y + 12 + h, guideline_color)
+            end
+
+            if slice_name ~= "neutral" then
+                for d in slice_name:gmatch"." do
+                    local xmin = -4
+                    local xmax = 3
+                    local ymin = -4
+                    local ymax = 3
+                    if d == "r" then
+                        xmax = 11
+                    elseif d == "u" then
+                        ymin = -12
+                    elseif d == "l" then
+                        xmin = -12
+                    elseif d == "d" then
+                        ymax = 11
+
+                    -- Diagonals
+                    elseif d == "e" then
+                        xmax = 11
+                        ymin = -12
+                    elseif d == "q" then
+                        xmin = -12
+                        ymin = -12
+                    elseif d == "z" then
+                        xmin = -12
+                        ymax = 11
+                    elseif d == "c" then
+                        ymax = 11
+                        xmax = 11
+                    end
+
+                    for w=xmin,xmax do
+                        for h=ymin,ymax do
+                            image:drawPixel(x + 12 + w, y + 12 + h, guideline_color)
+                        end
                     end
                 end
             end
@@ -417,7 +599,7 @@ function generate_tiled_slice_template(name)
     local guideline_layer = sprite:newLayer()
     guideline_layer.name = "guideline (delete/hide when exporting)"
     guideline_layer.isContinuous = true
-    guideline_layer.opacity = 100
+    guideline_layer.opacity = 255
     guideline_layer.stackIndex = 1
 
     for i=1,3 do
@@ -478,10 +660,18 @@ function import_baba_sprite(path, tiling)
     if filename then
         local baseimage = Image{ fromFile=path }
         local sprite = Sprite(baseimage.width,baseimage.height, ColorMode.RGB)
+
+        local tile_width = 1
+        local tile_height = 1
         if tiling == "tiled_slices" then
-            sprite.width = sprite.width * 4
-            sprite.height = sprite.height * 4
+            tile_width = 4
+            tile_height = 4
+        elseif tiling == "diag_tiled_slices" then
+            tile_width = 12
+            tile_height = 4
         end
+        sprite.width = sprite.width * tile_width
+        sprite.height = sprite.height * tile_height
 
         local missing_files = {}
         sprite.filename = obj_name
@@ -491,7 +681,7 @@ function import_baba_sprite(path, tiling)
                 local total_frames = 1
                 sprite:deleteFrame(1)
 
-                if tiling ~= "tiled_slices" then
+                if tiling ~= "tiled_slices" and tiling ~= "diag_tiled_slices" then
                     for _, ref_tag in ipairs(all_tags[tiling]) do
                         local curr_dir_offset = 0
                         local start_tag = total_frames
@@ -529,25 +719,32 @@ function import_baba_sprite(path, tiling)
                     new_tag = sprite:newTag(1, 3)
                     new_tag.name = "slices"
 
-                    for i, slice_name in ipairs(slice_order) do
-                        local x = (i-1) % 4 * baseimage.width
-                        local y = math.floor((i-1) / 4) * baseimage.width
-                        local slice = sprite:newSlice(Rectangle(x,y,baseimage.width,baseimage.height))
-                        slice.name = slice_name
-                        slice.color = Color{r=0, g=0, b=255}
-                        local slice_layer = sprite:newLayer()
+                    local order = slice_order
+                    if tiling == "diag_tiled_slices" then
+                        order = slice_order_diag
+                    end
 
-                        local curr_dir = char_tile_map[slice_name]
+                    for i, slice_name in ipairs(order) do
+                        if #slice_name > 0 then
+                            local x = (i-1) % tile_width * baseimage.width
+                            local y = math.floor((i-1) / tile_width) * baseimage.width
+                            local slice = sprite:newSlice(Rectangle(x,y,baseimage.width,baseimage.height))
+                            slice.name = slice_name
+                            slice.color = Color{r=0, g=0, b=255}
+                            local slice_layer = sprite:newLayer()
 
-                        for j=1,3 do
-                            local curr_path = dir_path..obj_name.."_"..tostring(curr_dir).."_"..tostring(j)..".png"
-                            local frame = sprite.frames[j]
+                            local curr_dir = char_tile_map[slice_name]
 
-                            if not app.fs.isFile(curr_path) then
-                                table.insert(missing_files, curr_path)
-                            else
-                                local image = Image{ fromFile = curr_path }
-                                sprite:newCel(slice_layer, frame, image, Point(x,y))
+                            for j=1,3 do
+                                local curr_path = dir_path..obj_name.."_"..tostring(curr_dir).."_"..tostring(j)..".png"
+                                local frame = sprite.frames[j]
+
+                                if not app.fs.isFile(curr_path) then
+                                    table.insert(missing_files, curr_path)
+                                else
+                                    local image = Image{ fromFile = curr_path }
+                                    sprite:newCel(slice_layer, frame, image, Point(x,y))
+                                end
                             end
                         end
                     end
@@ -673,10 +870,11 @@ if input.confirm then
     
         check_tag_requirements(input.tiling)
 
-        if input.tiling ~= "tiled_slices" then
+        if input.tiling ~= "tiled_slices" and input.tiling ~= "diag_tiled_slices" then
             export_spr(input.tiling, input.layer, input.name, dir_name)
         else
-            export_spr_slices(input.name, input.layer, dir_name)
+            local gen_diagonals = input.tiling == "diag_tiled_slices"
+            export_spr_slices(input.name, input.layer, dir_name, gen_diagonals)
         end
     elseif input.template then
         generate_template(input.tiling, input.name)

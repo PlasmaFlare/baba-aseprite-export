@@ -61,6 +61,7 @@ The animation style option corresponds to the 6 modes of animation (plus two ext
 - **Tiled** - sprite changes based on if its near other objects of the same sprite (wall, brick, fence)
 - **Text** - this isn't an actual animation style in Baba, but it is used to export text sprites. Under the hood, it uses the "None" animation style and prepends `text_` to the output file names
 - **Tiled Slices** - this isn't an actual animation style in Baba. It's exactly like "Tiled" but the format uses an Aseprite feature called slices. Basically think a tilemap editor.
+- **Diag Tiled Slices** - similar to the "Tiled Slices" option, but it accounts for diagonals. A new feature since Baba version 463
 
 (Note: when saying that the sprite remains the same, we ignore the wobble animation.)
 
