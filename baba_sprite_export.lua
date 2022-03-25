@@ -742,7 +742,13 @@ function import_baba_sprite(path, tiling)
                                 if not app.fs.isFile(curr_path) then
                                     table.insert(missing_files, curr_path)
                                 else
-                                    local image = Image{ fromFile = curr_path }
+                                    -- We load the src file into its own sprite before copying to a new image. This is to handle different color encodings other than RGB.
+                                    -- The policy is that I want to work with RGB files only.
+                                    local srcsprite = Sprite{ fromFile = curr_path }
+                                    local image = Image(srcsprite.width, srcsprite.height, ColorMode.RGB)
+                                    image:drawSprite(srcsprite)
+                                    srcsprite:close()
+                                    
                                     sprite:newCel(slice_layer, frame, image, Point(x,y))
                                 end
                             end
