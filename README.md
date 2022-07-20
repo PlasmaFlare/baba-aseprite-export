@@ -11,6 +11,8 @@ A script for exporting baba sprites created in aseprite
 - The exported sprites will be in a folder `<path to aseprite file>\<Sprite name>_out`
 
 # Changelog (because I forgot to do this before)
+- 7/19/22
+  - Updated script to make it compatible with linux (and hopefully other OS's as well)
 - 1/25/22
   - Fixed inaccurate results when importing baba sprites with color encodings other than RGB
 - 12/10/21

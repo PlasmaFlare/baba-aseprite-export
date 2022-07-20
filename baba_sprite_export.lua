@@ -242,6 +242,7 @@ local slice_order_diag = {
 }
 local baba_png_pattern = "^(.*[^a-zA-Z0-9_])(([a-zA-Z0-9_]+)_(%d+)_(%d+)%.png)$"
 local sprite = app.activeSprite
+local on_windows = app.fs.pathSeparator == "\\"
 
 local function check_tag_requirements(tag_type)
     local spr_tags = {}
@@ -291,6 +292,36 @@ local function check_tag_requirements(tag_type)
     end
 end
 
+local function open_dir_with_exported_sprites_in_explorer(out_dir)
+    -- Really hacky way of opening the file explorer that is OS independent
+    local out_files = app.fs.listFiles(out_dir)
+    if #out_files > 0 then
+        local sample_file = nil
+        for _, f in ipairs(out_files) do
+            if app.fs.fileExtension(f) == "png" then
+                sample_file = f
+                break
+            end
+        end
+
+        if sample_file then
+            local curr_sprite = app.activeSprite
+            
+            -- There's a possibility that opening the sample file will cause the "Open a sequence of files" dialog to appear.
+            -- Disable it only for opening the sample file
+            local old_sequence_pref = app.preferences.open_file.open_sequence
+            app.preferences.open_file.open_sequence = 2 -- Set it to no
+
+            app.open(app.fs.joinPath(out_dir, sample_file)) -- Open a sample png that was exported. Aseprite will then focus on this png.
+            app.command.OpenInFolder() -- Opens the folder containing the sample png, effectively opening the folder with the exported sprites
+            app.command.CloseFile() -- Close the sample png
+            app.activeSprite = curr_sprite -- Focus back on the original aseprite file
+
+            app.preferences.open_file.open_sequence = old_sequence_pref -- Restore the original setting
+        end
+    end
+end
+
 local function make_export_cmd(startFrame, endFrame, state_num, cmds, layer_option, text, spr_name, out_dir)
     local outfile_format
     local out_layers = {}
@@ -316,11 +347,11 @@ local function make_export_cmd(startFrame, endFrame, state_num, cmds, layer_opti
     end
 
     if text then
-        outfile_format = string.format("\"%s\\text_%s_%i_{frame1}.png\"", out_dir, spr_name, state_num)
+        outfile_format = app.fs.joinPath(out_dir, string.format("text_%s_%i_{frame1}.png", spr_name, state_num))
     else
-        outfile_format = string.format("\"%s\\%s_%i_{frame1}.png\"", out_dir, spr_name, state_num)
+        outfile_format = app.fs.joinPath(out_dir, string.format("%s_%i_{frame1}.png", spr_name, state_num))
     end
-    local cmd = [["%s" -b "%s" %s --frame-range %i,%i --save-as %s]]
+    local cmd = [["%s" -b "%s" %s --frame-range %i,%i --save-as "%s"]]
     cmd = string.format(cmd, app.fs.appPath, sprite.filename, layer_arg, startFrame-1, endFrame-1, outfile_format)
     table.insert(cmds, cmd)
 end
@@ -347,8 +378,8 @@ end
 local function export_spr(spr_type, layer, spr_name, dir_name)
     local cmds = {}
     local tag_count = 0
-    local out_dir = dir_name.."\\"..spr_name.."_out"
-    os.execute("mkdir \""..out_dir.."\"")
+    local out_dir = app.fs.joinPath(dir_name, spr_name.."_out")
+    app.fs.makeAllDirectories(out_dir)
 
     for i, tag in ipairs(sprite.tags) do
         local startFrame = tag.fromFrame.frameNumber
@@ -382,7 +413,11 @@ local function export_spr(spr_type, layer, spr_name, dir_name)
         end
     end
 
-    local cmd = [[type NUL && ]] .. table.concat(cmds, " & ")
+    local cmd = ""
+    if on_windows then
+        cmd = [[type NUL && ]]
+    end
+    cmd = cmd..table.concat(cmds, " & ")
     os.execute(cmd)
     
 
@@ -393,15 +428,15 @@ local function export_spr(spr_type, layer, spr_name, dir_name)
                 :button{ id="dir", text="Open Export Directory"}
                 :show().data
 
-    if confirm_dlg.dir then 
-        os.execute("explorer \""..out_dir.."\"")
+    if confirm_dlg.dir then
+        open_dir_with_exported_sprites_in_explorer(out_dir)
     end
 end
 
 function export_spr_slices(spr_name, layer, dir_name, gen_diagonals)
     local cmds = {}
-    local out_dir = dir_name.."\\"..spr_name.."_out"
-    os.execute("mkdir \""..out_dir.."\"")
+    local out_dir = app.fs.joinPath(dir_name, spr_name.."_out")
+    app.fs.makeAllDirectories(out_dir)
 
     local tags_to_check = tile_tags
     if gen_diagonals then
@@ -420,9 +455,11 @@ function export_spr_slices(spr_name, layer, dir_name, gen_diagonals)
         end
     end
 
-    
     local cmd_set = {}
-    local base_cmd = [[type NUL && ]]
+    local base_cmd = ""
+    if on_windows then
+        base_cmd = [[type NUL && ]]
+    end
     local curr_cmd = {}
     local curr_cmd_len = #base_cmd
     for i=1,#cmds do
@@ -442,12 +479,13 @@ function export_spr_slices(spr_name, layer, dir_name, gen_diagonals)
     end
 
     for _, c in ipairs(cmd_set) do
-        local cmd = [[type NUL && ]] .. table.concat(c, " & ")
+        local cmd = ""
+        if on_windows then
+            cmd = [[type NUL && ]]
+        end 
+        local cmd = cmd .. table.concat(c, " & ")
         os.execute(cmd)
     end
-    
-    -- local cmd = [[type NUL && ]] .. table.concat(cmds, " & ")
-    -- os.execute(cmd)
     
 
     local confirm_dlg = Dialog()
@@ -458,7 +496,7 @@ function export_spr_slices(spr_name, layer, dir_name, gen_diagonals)
                 :show().data
 
     if confirm_dlg.dir then 
-        os.execute("explorer \""..out_dir.."\"")
+        open_dir_with_exported_sprites_in_explorer(out_dir)
     end
 end
 
@@ -484,8 +522,8 @@ function make_slice_export_cmd(cmds, spr_name, layer_option, startFrame, endFram
         layer_arg = layer_arg .. "--layer \""..layer.."\" "
     end
 
-    local outfile_format = string.format("\"%s\\%s_%i_{frame1}.png\"", out_dir, spr_name, state_num)
-    local cmd = [["%s" -b "%s" %s --frame-range %i,%i --slice %s --save-as %s]]
+    local outfile_format = app.fs.joinPath(out_dir, string.format("%s_%i_{frame1}.png", spr_name, state_num))
+    local cmd = [["%s" -b "%s" %s --frame-range %i,%i --slice %s --save-as "%s"]]
     cmd = string.format(cmd, app.fs.appPath, sprite.filename, layer_arg, startFrame-1, endFrame-1, sliceName, outfile_format)
 
     table.insert(cmds, cmd)
@@ -774,7 +812,7 @@ local filename = ""
 local all_layers = {}
 local predicted_anim_style = predict_anim_type()
 if sprite then
-    dir_name, filename = string.match(sprite.filename, "(.*)\\(.*)%.")
+    dir_name, filename = string.match(sprite.filename, "(.*)"..app.fs.pathSeparator.."(.*)%.")
 
     for i,layer in ipairs(sprite.layers) do
         table.insert(all_layers, layer.name)
